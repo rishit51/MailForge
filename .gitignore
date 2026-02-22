@@ -1,0 +1,41 @@
+# ======================
+# Backend (Python)
+# ======================
+backend/*/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+backend/venv/
+venv/
+
+# Environment variables
+.env
+*.env
+
+# SQLite / DB files
+*.db
+*.sqlite3
+
+# Celery runtime files
+celerybeat-schedule
+celerybeat-schedule-shm
+celerybeat-schedule-wal
+
+# ======================
+# Frontend (Node)
+# ======================
+node_modules/
+frontend/node_modules/
+
+# Build output
+dist/
+build/
+
+# ======================
+# OS / Editor
+# ======================
+.DS_Store
+.idea/
+.vscode/
