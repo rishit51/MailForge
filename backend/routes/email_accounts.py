@@ -1,11 +1,18 @@
 from fastapi import APIRouter,HTTPException,Depends
+from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from db.db_connection import get_db
 from db.db_models import EmailAccount,User
+from db.models.enums import EmailProvider
 from pydantic_models.email_accounts import EmailAccountCreate
 from sqlalchemy import select
 from dependency import get_current_user
 from services.third_party_login import google_oauth_client
+
+REDIRECT_URI = 'http://localhost:8000/email-accounts/gmail/callback'
+FRONTEND_URL = 'http://localhost:5173'
+
+
 email_account_router = APIRouter(prefix="/email-accounts", tags=["Email Accounts"])
 
 
@@ -62,6 +69,7 @@ async def list_email_accounts(
             "provider": acc.provider,
             "email_address": acc.email_address,
             "created_at": acc.created_at,
+            "is_active":acc.is_active
         }
         for acc in accounts
     ]
@@ -82,3 +90,76 @@ async def delete_email_account(
 
 
 
+@email_account_router.get("/gmail/auth-url")
+async def get_gmail_auth_url(
+    current_user: User = Depends(get_current_user),
+):
+    auth_url = await google_oauth_client.get_authorization_url(
+        redirect_uri=REDIRECT_URI,
+        extras_params={
+            "access_type": "offline",
+            "prompt": "consent",
+        },
+        scope=[
+        "openid", "email", "profile",
+        "https://www.googleapis.com/auth/gmail.send",
+    ],
+        state=str(current_user.id)
+    )
+    return {"auth_url": auth_url}
+
+
+
+
+@email_account_router.get("/gmail/callback")
+async def gmail_callback(
+    code: str,
+    state: str,
+    db: AsyncSession = Depends(get_db),
+):
+    token_response = await google_oauth_client.get_access_token(
+        code=code,
+        redirect_uri=REDIRECT_URI,
+    )
+
+    user_id = state
+
+
+    from jose import jwt
+
+    payload = jwt.get_unverified_claims(token_response["id_token"])
+
+    email_address = payload["email"]
+    google_user_id = payload["sub"]
+    result = await db.execute(
+        select(EmailAccount).where(
+            EmailAccount.user_id == user_id,
+            EmailAccount.email_address == email_address,
+            EmailAccount.provider == EmailProvider.GMAIL,
+        )
+    )
+    existing = result.scalar_one_or_none()
+
+    if existing:
+        existing.config = {
+            "access_token": token_response["access_token"],
+            "refresh_token": token_response.get("refresh_token") or existing.config.get("refresh_token"),
+            "expires_at": token_response.get("expires_at"),
+        }
+        existing.is_active = True
+    else:
+        db.add(EmailAccount(
+            provider=EmailProvider.GMAIL,
+            user_id=user_id,
+            email_address=email_address,
+            name=email_address,
+            config={
+                "access_token": token_response["access_token"],
+                "refresh_token": token_response.get("refresh_token"),
+                "expires_at": token_response.get("expires_at"),
+            },
+            is_active=True,
+        ))
+
+    await db.commit()
+    return RedirectResponse(url=f"{FRONTEND_URL}/accounts/?connected=true")
