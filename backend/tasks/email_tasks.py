@@ -138,7 +138,7 @@ from db.db_models import (
     EmailJob,
     EmailEvent,
 )
-from backend.services.email_service import send_email
+from services.email_service import send_email
 
 logger = logging.getLogger(__name__)
 

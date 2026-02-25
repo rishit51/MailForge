@@ -10,6 +10,7 @@ import ChooseDataset from "./pages/CampaignDataset";
 import CampaignDetails from "./pages/CampaignDetails";
 import { DataSourcesPage } from "./pages/DataSourcesPage";
 import { EmailAccountsPage } from "./pages/EmailAccount";
+import CreateCampaign from "./pages/CreateCampaign";
 
 function App() {
   return (
@@ -64,7 +65,7 @@ function App() {
             path="/campaigns/new"
             element={
               <ProtectedRoute>
-                <DataSourcesPage />
+                <CreateCampaign />
               </ProtectedRoute>
             }
           ></Route>

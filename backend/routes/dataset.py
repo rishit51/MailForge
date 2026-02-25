@@ -2,6 +2,7 @@ from fastapi import APIRouter, File, Form, UploadFile, Depends, HTTPException, B
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import csv, io, uuid, aiofiles, os
+from pydantic_models.dataset import DatasetRepr
 from tasks.process_csv import process_csv_background
 from db.db_connection import get_db
 from db.db_models import Dataset, SourceType, DatasetRow, User
@@ -116,6 +117,32 @@ async def list_datasets(
             "total_pages": (total + page_size - 1) // page_size,
         },
     }
+    
+@dataset_router.get("/{id}")
+async def get_dataset(
+    id: int,
+    session: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
+)->DatasetRepr:
+
+    result = await session.execute(
+        select(Dataset).where(
+            Dataset.user_id == user.id,
+            Dataset.id == id
+        )
+    )
+
+    dataset = result.scalar_one_or_none()
+
+    if dataset is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Dataset not found"
+        )
+
+    return dataset
+
+
 @dataset_router.get('/preview/{dataset_id}')
 async def get_preview(
     dataset_id: int,

@@ -1,10 +1,11 @@
 from fastapi import APIRouter,HTTPException,Depends
 from fastapi.responses import RedirectResponse
+import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 from db.db_connection import get_db
 from db.db_models import EmailAccount,User
 from db.models.enums import EmailProvider
-from pydantic_models.email_accounts import EmailAccountCreate
+from pydantic_models.email_accounts import EmailAccountCreate, SendgridAccountCreate
 from sqlalchemy import select
 from dependency import get_current_user
 from services.third_party_login import google_oauth_client
@@ -163,3 +164,53 @@ async def gmail_callback(
 
     await db.commit()
     return RedirectResponse(url=f"{FRONTEND_URL}/accounts/?connected=true")
+
+
+
+
+@email_account_router.post("/sendgrid")
+async def verify_and_save_sendgrid(
+    payload: SendgridAccountCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    api_key = payload.config.get('api_key')
+
+    headers = {
+        "Authorization": f"Bearer {api_key}"
+    }
+
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.get(
+            "https://api.sendgrid.com/v3/user/profile",
+            headers=headers
+        )
+
+    if resp.status_code != 200:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid SendGrid API key"
+        )
+
+    profile = resp.json()
+
+    # Step 2: Save account
+    account = EmailAccount(
+        provider=EmailProvider.SENDGRID,
+        email_address=profile.get("email") or payload.email_address,
+        name=payload.name,
+        config={"api_key": api_key},
+        user_id=user.id,
+        is_active=True
+    )
+
+    db.add(account)
+    await db.commit()
+    await db.refresh(account)
+
+    return {
+        "id": account.id,
+        "provider": account.provider,
+        "email_address": account.email_address,
+        "verified": True
+    }

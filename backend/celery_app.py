@@ -22,7 +22,7 @@ celery_app.conf.update(
 celery_app.conf.beat_schedule = {
     "dispatch-emails-every-10-seconds": {
         "task": "tasks.dispatch_emails",
-        "schedule": 10.0,   # seconds
-        "options": {"queue": "celery"},
+        "schedule": 1.0,   # seconds
+        "options": {"queue": "emails"},
     }
 }

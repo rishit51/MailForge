@@ -60,7 +60,7 @@ RULES (do not break these):
 - Output ONLY valid JSON
 - JSON must contain exactly two keys: "subject" and "body"
 - Use ONLY these placeholders: {sorted(allowed_columns)}
-- Placeholders must use double curly braces, e.g. {{company_name}}
+- Placeholders must use single curly braces, e.g. {{company_name}}
 - Do NOT invent new placeholders
 - Do NOT include explanations, markdown, or extra text
 """

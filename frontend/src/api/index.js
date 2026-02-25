@@ -118,3 +118,51 @@ export const fetchPreview = async (dataset_id) => {
 
   return await res.json();
 };
+
+
+export const gmailAuth = async ()=>{
+  const authHeaders = await getAuthHeaders();
+  const res = await fetch(`${BASE_URL}/email-accounts/gmail/auth-url`, {
+    headers: {...authHeaders},
+  });
+
+  if (!res.ok) {
+    handleApiError(res);
+  }
+  const data = await res.json();
+  return data.auth_url;
+}
+
+export async function fetchAccounts() {
+  const authHeaders = await getAuthHeaders()
+  const res = await fetch(`${BASE_URL}/email-accounts`,{ headers:{...authHeaders}})
+  if (!res.ok) {
+    handleApiError(res);
+  }
+  return res.json()
+}
+
+export async function deleteAccount(id) {
+
+  await fetch(`${BASE_URL}/email-accounts/${id}`, {
+    method: "DELETE",
+    headers: {
+      ...authHeaders
+    }
+  })
+}
+export async function createSendgridAccount(payload) {
+  const authHeaders = await getAuthHeaders();
+  const res = await fetch(`${BASE_URL}/email-accounts/sendgrid`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" ,...authHeaders},
+    body: JSON.stringify(payload),
+  })
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new Error(body.detail || "Failed to connect SendGrid account.")
+  }
+
+  return res.json()
+}
