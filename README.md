@@ -143,7 +143,7 @@ Once the backend is running, visit:
 
 ## 💡 Usage Flow
 
-1. **Upload Data**: Upload a CSV file or connect Google Sheets as your recipient list
+1. **Upload Data**: Upload a CSV file as your recipient list
 2. **Connect Email Account**: Connect Gmail (OAuth) or SendGrid account
 3. **Create Campaign**: Use the step-by-step wizard to:
    - Select recipient dataset
@@ -181,7 +181,6 @@ SECRET_KEY=your-secret-key
 COHERE_API_KEY=your-cohere-key
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
-SENDGRID_API_KEY=your-sendgrid-key
 ```
 
 ### Frontend (.env)
@@ -209,7 +208,7 @@ MIT License
 
 ## 👤 Author
 
-Your Name - [Your GitHub](https://github.com/yourusername)
+Your Name - [Your GitHub](https://github.com/rishit51)
 
 ---
 
