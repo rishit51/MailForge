@@ -156,7 +156,6 @@ async def gmail_callback(
             provider=EmailProvider.GMAIL,
             user_id=user_id,
             email_address=email_address,
-            name=email_address,
             config={
                 "access_token": token_response["access_token"],
                 "refresh_token": token_response.get("refresh_token"),
@@ -201,7 +200,6 @@ async def verify_and_save_sendgrid(
     account = EmailAccount(
         provider=EmailProvider.SENDGRID,
         email_address=profile.get("email") or payload.email_address,
-        name=payload.name,
         config={"api_key": api_key},
         user_id=user.id,
         is_active=True
@@ -218,114 +216,55 @@ async def verify_and_save_sendgrid(
         "verified": True
     }
 
+@email_account_router.post('/auth/sendgrid/{account_id}/generate')
+async def generate_credentials_sendgrid(
+    account_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
 
-@email_account_router.post('auth/sendgrid/{account_id}/generate')
-async def generate_credentials_sendgrid(account_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
-    """
-    Generate OAuth credentials for SendGrid webhook authentication on demand.
-    User can call this whenever they want to generate new credentials.
-    Returns credentials only once per generation.
-    """
-    # Fetch the account
     result = await db.execute(
-        select(EmailAccount).where(
-            EmailAccount.id == account_id,
-            EmailAccount.user_id == user.id,
-            EmailAccount.provider == EmailProvider.SENDGRID
-        )
+    select(EmailAccount)
+    .where(
+        EmailAccount.id == account_id,
+        EmailAccount.user_id == user.id,
+        EmailAccount.provider == EmailProvider.SENDGRID
     )
+    .with_for_update()
+)
+
     account = result.scalar_one_or_none()
-    
+
     if not account:
-        raise HTTPException(status_code=404, detail="SendGrid account not found")
-    
-    # Generate new credentials
+        raise HTTPException(
+            status_code=404,
+            detail="SendGrid account not found"
+        )
+
+    if account.oauth_id is not None:
+        return {
+        "client_id": account.oauth_id,
+        "client_secret": "*"*32,
+        'message':
+        "Credentials already generated and cannot be viewed again."   
+        }
+
+    # Generate credentials
     client_id = f"sendgrid_webhook_{uuid.uuid4().hex[:16]}"
     client_secret = secrets.token_urlsafe(32)
+    config = account.config or {}
+    account.config = {
+        **config,
+        "oauth_client_secret": client_secret,
+        "oauth_credentials_viewed": True
+    }
     
-    # Store in config and mark as not yet viewed
-    account.config["oauth_client_id"] = client_id
-    account.config["oauth_client_secret"] = client_secret
-    account.config["oauth_credentials_viewed"] = False
-    
+    account.oauth_id = client_id
+
     await db.commit()
-    
+
     return {
         "client_id": client_id,
         "client_secret": client_secret,
-        "token_url": account.config.get("oauth_token_url"),
-        "warning": "Save these credentials now - the client secret cannot be retrieved again!"
+        "warning":"Save these credentials now — they cannot be retrieved again!"
     }
-
-
-@email_account_router.get('auth/sendgrid/{account_id}')
-async def get_credentials_sendgrid(account_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
-    """
-    Get OAuth credentials for SendGrid webhook.
-    Returns credentials only once - subsequent calls return null for client_secret.
-    """
-    result = await db.execute(
-        select(EmailAccount).where(
-            EmailAccount.id == account_id,
-            EmailAccount.user_id == user.id,
-            EmailAccount.provider == EmailProvider.SENDGRID
-        )
-    )
-    account = result.scalar_one_or_none()
-    
-    if not account:
-        raise HTTPException(status_code=404, detail="SendGrid account not found")
-    
-    # Check if credentials exist
-    if "oauth_client_id" not in account.config or "oauth_client_secret" not in account.config:
-        return {
-            "has_credentials": False,
-            "message": "No OAuth credentials generated yet. Call the generate endpoint to create credentials."
-        }
-    
-    # Check if already viewed
-    credentials_viewed = account.config.get("oauth_credentials_viewed", False)
-    
-    if credentials_viewed:
-        return {
-            "has_credentials": True,
-            "client_id": account.config.get("oauth_client_id"),
-            "client_secret": None,
-            "token_url": account.config.get("oauth_token_url"),
-            "warning": "Client secret was already shown. Generate new credentials if needed."
-        }
-    else:
-        # First time viewing - mark as viewed
-        account.config["oauth_credentials_viewed"] = True
-        await db.commit()
-        
-        return {
-            "has_credentials": True,
-            "client_id": account.config.get("oauth_client_id"),
-            "client_secret": account.config.get("oauth_client_secret"),
-            "token_url": account.config.get("oauth_token_url"),
-            "warning": "Save these credentials now - the client secret cannot be retrieved again!"
-        }
-
-
-@email_account_router.put('auth/sendgrid/{account_id}/token-url')
-async def update_token_url(account_id: int, token_url: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
-    """
-    Update the OAuth Token URL for SendGrid webhook.
-    """
-    result = await db.execute(
-        select(EmailAccount).where(
-            EmailAccount.id == account_id,
-            EmailAccount.user_id == user.id,
-            EmailAccount.provider == EmailProvider.SENDGRID
-        )
-    )
-    account = result.scalar_one_or_none()
-    
-    if not account:
-        raise HTTPException(status_code=404, detail="SendGrid account not found")
-    
-    account.config["oauth_token_url"] = token_url
-    await db.commit()
-    
-    return {"status": "updated", "token_url": token_url}

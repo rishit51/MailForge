@@ -11,13 +11,14 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Mail, Plus, CheckCircle2, Trash2, Send, KeyRound } from "lucide-react"
+import { Mail, Plus, CheckCircle2, Trash2, Send, KeyRound, Shield } from "lucide-react"
 
 import {
   gmailAuth,
   fetchAccounts,
   deleteAccount,
   createSendgridAccount,
+  generateSendgridCredentials,
 } from "../api"
 
 
@@ -40,7 +41,10 @@ function ProviderLabel({ provider }) {
   return provider === "gmail" ? "Gmail (OAuth)" : "SendGrid API"
 }
 
-function AccountCard({ account, onDisconnect }) {
+function AccountCard({ account, onDisconnect, onGenerateCredentials }) {
+  const isSendgrid = account.provider === "sendgrid"
+  const hasCredentials = account.config?.oauth_credentials_viewed
+
   return (
     <Card className="relative overflow-hidden">
       <div className="absolute right-0 top-0 p-4">
@@ -64,7 +68,18 @@ function AccountCard({ account, onDisconnect }) {
         </CardDescription>
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="space-y-2">
+        {isSendgrid && (
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => onGenerateCredentials(account)}
+          >
+            <Shield className="mr-2 h-4 w-4" />
+            {hasCredentials ? "View Webhook Credentials" : "Generate Webhook Credentials"}
+          </Button>
+        )}
+        
         <Button
           variant="outline"
           className="w-full text-destructive"
@@ -240,6 +255,13 @@ export function EmailAccountsPage() {
 
   const [accounts, setAccounts] = useState([])
   const [modalOpen, setModalOpen] = useState(false)
+  
+  // Webhook credentials dialog state
+  const [credentialsDialogOpen, setCredentialsDialogOpen] = useState(false)
+  const [selectedAccount, setSelectedAccount] = useState(null)
+  const [credentials, setCredentials] = useState(null)
+  const [credentialsLoading, setCredentialsLoading] = useState(false)
+  const [credentialsError, setCredentialsError] = useState(null)
 
   async function loadAccounts() {
     const data = await fetchAccounts()
@@ -259,6 +281,24 @@ export function EmailAccountsPage() {
   async function handleDisconnect(id) {
     await deleteAccount(id)
     loadAccounts()
+  }
+
+  async function handleGenerateCredentials(account) {
+    setSelectedAccount(account)
+    setCredentialsDialogOpen(true)
+    setCredentials(null)
+    setCredentialsError(null)
+    setCredentialsLoading(true)
+
+    try {
+      const data = await generateSendgridCredentials(account.id)
+      setCredentials(data)
+    } catch (err) {
+      console.error(err)
+      setCredentialsError(err.message || "Failed to generate credentials.")
+    } finally {
+      setCredentialsLoading(false)
+    }
   }
 
   return (
@@ -293,6 +333,7 @@ export function EmailAccountsPage() {
               key={acc.id}
               account={acc}
               onDisconnect={handleDisconnect}
+              onGenerateCredentials={handleGenerateCredentials}
             />
           ))}
         </div>
@@ -303,6 +344,64 @@ export function EmailAccountsPage() {
         onOpenChange={setModalOpen}
         reload={loadAccounts}
       />
+
+      {/* Webhook Credentials Dialog */}
+      <Dialog open={credentialsDialogOpen} onOpenChange={setCredentialsDialogOpen}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>SendGrid Webhook Credentials</DialogTitle>
+            <DialogDescription>
+              Use these credentials to configure OAuth for SendGrid webhook events.
+            </DialogDescription>
+          </DialogHeader>
+
+          {credentialsLoading && (
+            <div className="py-8 text-center text-muted-foreground">
+              Generating credentials...
+            </div>
+          )}
+
+          {credentialsError && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+              {credentialsError}
+            </div>
+          )}
+
+          {credentials && !credentialsLoading && (
+            <div className="space-y-4">
+              {credentials.warning && (
+                <div className="rounded-md border border-amber-400/40 bg-amber-50 p-3 text-sm text-amber-800">
+                  <strong>Warning:</strong> {credentials.warning}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Client ID</label>
+                <Input
+                  value={credentials.client_id}
+                  readOnly
+                  className="font-mono"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Client Secret</label>
+                <Input
+                  value={credentials.client_secret}
+                  readOnly
+                  className="font-mono"
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCredentialsDialogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

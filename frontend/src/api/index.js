@@ -143,7 +143,7 @@ export async function fetchAccounts() {
 }
 
 export async function deleteAccount(id) {
-
+  const authHeaders = await getAuthHeaders()
   await fetch(`${BASE_URL}/email-accounts/${id}`, {
     method: "DELETE",
     headers: {
@@ -165,4 +165,19 @@ export async function createSendgridAccount(payload) {
   }
 
   return res.json()
+}
+
+export async function generateSendgridCredentials(accountId) {
+  const authHeaders = await getAuthHeaders();
+  const res = await fetch(`${BASE_URL}/email-accounts/auth/sendgrid/${accountId}/generate`, {
+    method: "POST",
+    headers: { ...authHeaders },
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail || "Failed to generate credentials.");
+  }
+
+  return res.json();
 }

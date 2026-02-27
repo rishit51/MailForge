@@ -1,10 +1,20 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Enum, JSON, DateTime, ForeignKey, String
+from sqlalchemy import Enum, LargeBinary, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
-
 from .base import Base
 from .enums import EmailProvider
+import os
+from cryptography.fernet import Fernet
+import pickle
+from dotenv import load_dotenv
+import json
+load_dotenv()
+
+key = os.getenv('ENCRYPTION_KEY')
+if key is None:
+    raise EnvironmentError('ENCRYPTION_KEY missing from .env')
+fernet = Fernet(key.encode())
 
 
 class EmailAccount(Base):
@@ -26,14 +36,9 @@ class EmailAccount(Base):
         nullable=False,
     )
 
-    name: Mapped[str] = mapped_column(
-        default=lambda: f"dataset-{uuid.uuid4().hex[:8]}",
-        nullable=False
-    )
-
     # OAuth tokens for Gmail OR API keys for SendGrid
-    config: Mapped[dict] = mapped_column(
-        JSON,
+    _config: Mapped[bytes] = mapped_column(
+        LargeBinary,
         nullable=False,
     )
 
@@ -48,3 +53,19 @@ class EmailAccount(Base):
         nullable=False,
     )
 
+    oauth_id:Mapped[str] = mapped_column(
+        String,
+        default=None,
+        nullable=True
+    ) 
+    
+    @property
+    def config(self):
+        """Getter method for accessing encrypted config attribute."""
+        config = json.loads(fernet.decrypt(self._config))
+        return config
+    
+    @config.setter
+    def config(self,config):
+        """Setter method for saving the encrypted config attriubutes"""
+        self._config = fernet.encrypt(json.dumps(config).encode())

@@ -15,17 +15,6 @@ EVENT_TO_STATUS = {
 }
 
 
-def verify_sendgrid_token(authorization: str | None) -> bool:
-    if not authorization:
-        return False
-
-    if not authorization.startswith("Bearer "):
-        return False
-
-    token = authorization.removeprefix("Bearer ").strip()
-
-    # TODO: replace with real validation / cache
-    return token == "SENDGRID_SHARED_TOKEN"
 
 webhook_integration_router = APIRouter(prefix="/webhook")
 
@@ -34,7 +23,6 @@ async def sendgrid_webhook(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-
   
     # 2️⃣ Parse payload (SendGrid sends a list of events)
     try:

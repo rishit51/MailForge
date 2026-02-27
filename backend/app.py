@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi_pagination import add_pagination
 from routes.dataset import dataset_router
@@ -33,3 +33,21 @@ app.include_router(auth_service_router)
 @app.get("/ping")
 def ping():
     return {"message": "server is alive"}
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    body = await request.body()
+    print("----- INCOMING REQUEST -----")
+    print("URL:", request.url)
+    print("Headers:", dict(request.headers))
+    print("Body:", body.decode("utf-8", errors="ignore"))
+    print("----------------------------")
+
+    # Important: reattach body so FastAPI can read it again
+    async def receive():
+        return {"type": "http.request", "body": body}
+
+    request._receive = receive
+
+    response = await call_next(request)
+    return response
