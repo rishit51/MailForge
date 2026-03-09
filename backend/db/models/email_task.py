@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import Enum, DateTime, ForeignKey, String, UniqueConstraint
+from sqlalchemy import Enum, DateTime, ForeignKey, Index, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base
@@ -42,5 +42,7 @@ class EmailTask(Base):
     
     __table_args__ = (
         UniqueConstraint("job_id", "dataset_row_id", name="uq_job_row"),
+        Index("ix_job_status", "job_id", "status"),
+        Index("ix_job_sentat", "job_id", "sent_at"),
     )
 

@@ -43,7 +43,6 @@ export function DataSourcesPage() {
   const previewRef = React.useRef(null)
 
   const { datasets, isLoading, refetch } = usePreviewDatasets();
-  console.log(datasets)
 
   /* ---------- FILE PREVIEW ---------- */
 
@@ -55,7 +54,7 @@ export function DataSourcesPage() {
     const chunk = await f.slice(0, 20000).text()
     const lines = chunk.split("\n").slice(0, 7)
     const parsed = lines.map(l => l.split(","))
-
+    console.log(parsed)
     setColumns(parsed[0] || [])
     setPreviewRows(parsed.slice(1) || [])
 
@@ -71,7 +70,6 @@ export function DataSourcesPage() {
   
     try {
       const data = await fetchPreview(id)
-  
       setColumns(data.json_schema || [])
       setPreviewRows(data.rows || [])
       setDatasetName(data.name || "Dataset preview")

@@ -1,19 +1,24 @@
-from db.db_connection import AsyncSessionLocal
+from db.db_connection import AsyncSessionLocal,SyncSessionLocal
 import aiofiles, csv, io, os
 from db.db_models import Dataset, DatasetRow, DatasetStatus
 from sqlalchemy import select
 from typing import Optional
+from celery_app import celery_app
+import logging
+logger = logging.getLogger(__name__)
 
-async def process_csv_background(file_path: str, dataset_id: int):
+
+@celery_app.task(name='tasks.process_csv')
+def process_csv_background(file_path: str, dataset_id: int):
     batch_size = 1000
     rows_buffer = []
     total_rows = 0
 
-    async with AsyncSessionLocal() as db:
+    with SyncSessionLocal() as db:
         dataset: Optional[Dataset] = None
 
         try:
-            result = await db.execute(
+            result = db.execute(
                 select(Dataset).where(Dataset.id == dataset_id)
             )
             dataset = result.scalar_one_or_none()
@@ -22,48 +27,50 @@ async def process_csv_background(file_path: str, dataset_id: int):
                 return
 
             # load file once (safe version)
-            async with aiofiles.open(file_path, "r") as f:
-                content = await f.read()
+            with open(file_path, "r", newline="",encoding='utf-8') as f:
+                csvreader = csv.DictReader(f)
+                fieldnames = csvreader.fieldnames
+            
 
-            reader = csv.DictReader(io.StringIO(content))
+                if not fieldnames:
+                    raise Exception("CSV missing header")
 
-            if not reader.fieldnames:
-                raise Exception("CSV missing header")
+                for row in csvreader:
+                    cleaned = {
+                        k.strip(): (v.strip() if v else "")
+                        for k, v in row.items()
+                        if k is not None
+                    }
 
-            for row in reader:
-                cleaned = {
-                    k.strip(): (v.strip() if v else "")
-                    for k, v in row.items()
-                }
+                    rows_buffer.append(
+                        DatasetRow(dataset_id=dataset_id, row_data=cleaned)
+                    )
 
-                rows_buffer.append(
-                    DatasetRow(dataset_id=dataset_id, row_data=cleaned)
-                )
+                    if len(rows_buffer) >= batch_size:
+                        db.add_all(rows_buffer)
+                        db.flush()
+                        total_rows += len(rows_buffer)
+                        rows_buffer.clear()
 
-                if len(rows_buffer) >= batch_size:
+                if rows_buffer:
                     db.add_all(rows_buffer)
-                    await db.flush()
                     total_rows += len(rows_buffer)
-                    rows_buffer = []
+                    db.flush()
 
-            if rows_buffer:
-                db.add_all(rows_buffer)
-                total_rows += len(rows_buffer)
-
-            if total_rows == 0:
-                raise Exception("CSV had no rows")
-            dataset.processed_rows = total_rows
-            dataset.dataset_status = DatasetStatus.COMPLETED
-            await db.commit()
+                if total_rows == 0:
+                    raise Exception("CSV had no rows")
+                dataset.processed_rows = total_rows
+                dataset.dataset_status = DatasetStatus.COMPLETED
+                db.commit()
 
         except Exception as e:
-            await db.rollback()
+            db.rollback()
 
             if dataset is not None:
                 dataset.dataset_status = DatasetStatus.FAILED
-                await db.commit()
-
-            print("CSV processing failed:", e)
+                db.commit()
+            
+            logger.exception("CSV processing failed")
 
         finally:
             if os.path.exists(file_path):

@@ -2,6 +2,7 @@ from fastapi import APIRouter, File, Form, UploadFile, Depends, HTTPException, B
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import csv, io, uuid, aiofiles, os
+from db.models.enums import DatasetStatus
 from pydantic_models.dataset import DatasetRepr
 from tasks.process_csv import process_csv_background
 from db.db_connection import get_db
@@ -13,23 +14,24 @@ dataset_router = APIRouter(prefix="/datasets")
 
 @dataset_router.post("/", response_model=dict)
 async def upload_csv(
-    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     email_column: str = Form(...),
     name: str = Form(...),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
-):
-    # size guard (100MB)
-    if file.size and file.size > 100_000_000:
-        raise HTTPException(413, "File too large")
+):  
+    size = 0
+    MAX_SIZE = 100_000_000
 
     file_id = str(uuid.uuid4())
     file_path = f"uploads/{file_id}.csv"
-
+    os.makedirs("uploads", exist_ok=True)
     # save file to disk (streaming)
     async with aiofiles.open(file_path, "wb") as f:
         while chunk := await file.read(1024 * 1024):
+            size+=len(chunk)
+            if size > MAX_SIZE:
+                raise HTTPException(413,"File too Large")
             await f.write(chunk)
 
     # read just header first
@@ -55,16 +57,16 @@ async def upload_csv(
         user_id=user.id,
         name=name,
         email_column=email_column,
+        dataset_status=DatasetStatus.PROCESSING
     )
 
     db.add(dataset)
     await db.flush()   # get dataset.id
     await db.commit()
-    background_tasks.add_task(
-        process_csv_background,
+    
+    process_csv_background.delay(
         file_path,
-        dataset.id
-    )
+        dataset.id)
     return {
         "columns": columns,
         "name": dataset.name,
@@ -165,10 +167,15 @@ async def get_preview(
         .where(DatasetRow.dataset_id == dataset.id)
         .limit(5)
     )
+    rows = rows_result.scalars().all()
+        
+    rows = [list(row.values()) for row in rows]
+
+
 
     response = {
         "json_schema": dataset.json_schema,
-        "rows": rows_result.scalars().all()
+        "rows": rows
     }
 
     return response

@@ -19,7 +19,6 @@ load_dotenv()
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
 
-
 class GmailAdapter(BaseEmailProviderAdapter):
 
     def send(self, task: EmailTask):
@@ -31,85 +30,29 @@ class GmailAdapter(BaseEmailProviderAdapter):
                 token_uri="https://oauth2.googleapis.com/token",
                 client_id=GOOGLE_CLIENT_ID,
                 client_secret=GOOGLE_CLIENT_SECRET,
-                scopes=[
-                    "https://www.googleapis.com/auth/gmail.send"
-                ],
+                scopes=["https://www.googleapis.com/auth/gmail.send"],
             )
 
             if creds.expired and creds.refresh_token:
-
                 creds.refresh(Request())
 
-                self.account.config = json.loads(
-                    creds.to_json()
-                )
+                updated = json.loads(creds.to_json())
+                self.account.config["access_token"] = updated["token"]
+                self.account.config["refresh_token"] = updated.get("refresh_token")
 
                 session.add(self.account)
                 session.commit()
 
-            service = build(
-                "gmail",
-                "v1",
-                credentials=creds,
-            )
+            service = build("gmail", "v1", credentials=creds)
 
             message = MIMEText(task.rendered_body)
-
             message["to"] = task.recipient_email
             message["from"] = self.account.email_address
             message["subject"] = task.rendered_subject
 
-            raw = base64.urlsafe_b64encode(
-                message.as_bytes()
-            ).decode()
+            raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
 
             service.users().messages().send(
                 userId="me",
                 body={"raw": raw},
-            ).execute()
-            session = get_sync_db()
-            creds = Credentials(
-            token=self.account.config["access_token"],
-            refresh_token=self.account.config["refresh_token"],
-            token_uri="https://oauth2.googleapis.com/token",
-            client_id=GOOGLE_CLIENT_ID,
-            client_secret=GOOGLE_CLIENT_SECRET,
-            scopes=[
-                "https://www.googleapis.com/auth/gmail.send"
-    ],
-)
-            if creds.expired and creds.refresh_token:
-
-                creds.refresh(Request())
-
-                self.account.config = json.loads(
-                    creds.to_json()
-                )
-                session.add(self.account)
-                session.commit()
-
-            service = build(
-                "gmail",
-                "v1",
-                credentials=creds,
-            )
-
-            message = MIMEText(task.rendered_body)
-
-            message["to"] = task.recipient_email
-            message["from"] = self.account.email_address
-            message["subject"] = task.rendered_subject
-
-            # ---- 5️⃣ Encode message ----
-            raw = base64.urlsafe_b64encode(
-                message.as_bytes()
-            ).decode()
-
-            body = {
-                "raw": raw
-            }
-
-            service.users().messages().send(
-                userId="me",
-                body=body,
             ).execute()

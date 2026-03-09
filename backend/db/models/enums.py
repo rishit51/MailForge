@@ -18,10 +18,12 @@ class EmailProvider(enum.Enum):
 
 class EmailJobStatus(enum.Enum):
     CREATED = "created"        # job exists, nothing executed yet
+    PROCESSING = "processing"
     SCHEDULED = "scheduled"    # waiting for scheduled time
     RUNNING = "running"        # tasks are being processed
     COMPLETED = "completed"    # all tasks finished (success or partial failure)
     FAILED = "failed"          # job-level failure (fatal)
+    PARTIAL_SUCCESS = 'partial'
 
 
 class EmailTaskStatus(enum.Enum):

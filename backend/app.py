@@ -34,20 +34,20 @@ app.include_router(auth_service_router)
 def ping():
     return {"message": "server is alive"}
 
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    body = await request.body()
-    print("----- INCOMING REQUEST -----")
-    print("URL:", request.url)
-    print("Headers:", dict(request.headers))
-    print("Body:", body.decode("utf-8", errors="ignore"))
-    print("----------------------------")
+# @app.middleware("http")
+# async def log_requests(request: Request, call_next):
+#     body = await request.body()
+#     print("----- INCOMING REQUEST -----")
+#     print("URL:", request.url)
+#     print("Headers:", dict(request.headers))
+#     print("Body:", body.decode("utf-8", errors="ignore"))
+#     print("----------------------------")
 
-    # Important: reattach body so FastAPI can read it again
-    async def receive():
-        return {"type": "http.request", "body": body}
+#     # Important: reattach body so FastAPI can read it again
+#     async def receive():
+#         return {"type": "http.request", "body": body}
 
-    request._receive = receive
+#     request._receive = receive
 
-    response = await call_next(request)
-    return response
+#     response = await call_next(request)
+#     return response

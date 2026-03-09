@@ -17,7 +17,7 @@ from .email_job import EmailJob
 from .email_task import EmailTask
 from .email_event import EmailEvent
 from .email_job_analytics import EmailJobAnalytics
-
+from .outbox_event import OutboxEvent
 __all__ = [
     # Enums
     "SourceType",
@@ -34,6 +34,7 @@ __all__ = [
     "EmailJob",
     "EmailTask",
     "EmailEvent",
-    "EmailJobAnalytics"
+    "EmailJobAnalytics",
+    "OutboxEvent"
 ]
 

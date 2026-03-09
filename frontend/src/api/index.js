@@ -66,7 +66,7 @@ export const uploadDataset = async ({
         }
       },
     }
-  );
+  )
 
   return response.data;
 };

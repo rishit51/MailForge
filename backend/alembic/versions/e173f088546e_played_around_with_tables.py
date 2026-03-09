@@ -33,6 +33,13 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['job_id'], ['email_jobs.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
+    status_enum = sa.Enum(
+        'PROCESSING', 'COMPLETED', 'FAILED',
+        name='status'
+    )
+
+    # 👇 create enum FIRST
+    status_enum.create(op.get_bind(), checkfirst=True)
     op.add_column('datasets', sa.Column('dataset_status', sa.Enum('PROCESSING', 'COMPLETED', 'FAILED', name='status'), nullable=False))
     op.add_column('datasets', sa.Column('processed_rows', sa.Integer(), nullable=False))
     # ### end Alembic commands ###
