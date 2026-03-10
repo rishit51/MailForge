@@ -1,12 +1,23 @@
-# celery_app.py
+import os
 from celery import Celery
+
+# Load from environment variables, fallback to local dev defaults
+BROKER_URL = os.getenv("CELERY_BROKER_URL", "pyamqp://guest:guest@localhost:5672//")
+BACKEND_URL = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
 
 celery_app = Celery(
     "email_sender",
-    broker="redis://localhost:6379/0",
-    backend="redis://localhost:6379/1",
-        include=["tasks.email_tasks","tasks.create_email_tasks","tasks.process_csv","tasks.campaign_dispatch","tasks.outbox_queue","tasks.orchestrator"],  # <-- THIS is the key line
-
+    broker=BROKER_URL,
+    backend=BACKEND_URL,
+    include=[
+        "tasks.email_tasks",
+        "tasks.create_email_tasks",
+        "tasks.process_csv",
+        "tasks.campaign_dispatch",
+        "tasks.outbox_queue",
+        "tasks.orchestrator",
+        "tasks.email_events", 
+    ],
 )
 
 celery_app.conf.update(
@@ -17,15 +28,21 @@ celery_app.conf.update(
     enable_utc=True,
     task_track_started=True,
     worker_prefetch_multiplier=1,
+    
+    # Optional but highly recommended: Route tasks to different queues
+    task_routes={
+        'tasks.process_sendgrid_events': {'queue': 'webhooks'},
+        'tasks.process_csv': {'queue': 'data_processing'},
+    }
 )
 
 celery_app.conf.beat_schedule = {
     "schedule-campaigns": {
         "task": "tasks.schedule_campaigns",
-        "schedule": 60.0,  # every 60 seconds
+        "schedule": 60.0,
     },
     "process-outbox": {
         "task": "tasks.process_outbox",
-        "schedule": 5.0,   # every 5 seconds
+        "schedule": 5.0,
     },
 }

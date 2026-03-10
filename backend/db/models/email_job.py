@@ -24,6 +24,8 @@ class EmailJob(Base):
     email_account_id: Mapped[int] = mapped_column(
         ForeignKey("email_accounts.id"),
         nullable=False,
+
+        
     )
 
     prompt_template: Mapped[Optional[str]] = mapped_column(nullable=True)
