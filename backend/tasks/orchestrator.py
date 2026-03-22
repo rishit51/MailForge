@@ -95,7 +95,6 @@ def run_campaign(job_id: int):
 
             else:
                 job.status = EmailJobStatus.COMPLETED
-            job.status = EmailJobStatus.COMPLETED
             db.commit()
             return
 

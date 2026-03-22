@@ -25,7 +25,7 @@ class UserResponseBody(BaseModel):
     email:str
     name:str | None
     id:int
-    model_config = {"from_attributes": True}
+model_config = {"from_attributes": True}
 
     
 class UserCreateResponse(BaseModel):

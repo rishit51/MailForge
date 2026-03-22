@@ -16,7 +16,7 @@ from utilities.generate_token import create_client_token
 auth_service_router = APIRouter()
 
 
-@auth_service_router.get("/me")
+@auth_service_router.get("/me", summary="Get current user profile", description="Returns basic info about the authenticated user. Used for dashboard/profile display.")
 async def get_me(user:User=Depends(get_current_user)):
     return {
         "id": user.id,
@@ -31,13 +31,8 @@ import logging
 # Set up your logger
 logger = logging.getLogger(__name__)
 
-@auth_service_router.post("/oauth/token")
-async def issue_client_token(
-    grant_type: str = Form(...),
-    client_id: str = Form(...),
-    client_secret: str = Form(...),
-    db: AsyncSession = Depends(get_db)
-):
+@auth_service_router.post(   path = "/oauth/token",   summary="Issue OAuth2 token for SendGrid webhooks",   description="**Client Credentials flow**. Validates client_id/secret from EmailAccount.config. Why? Securely authorize SendGrid→webhook without exposing API keys. Returns short-lived JWT.")
+async def issue_client_token( grant_type: str = Form(...),client_id: str = Form(...),  client_secret: str = Form(...),   db: AsyncSession = Depends(get_db)):
     logger.info(f"OAuth token request received for client_id: {client_id}")
 
     # 1️⃣ VALIDATE GRANT TYPE

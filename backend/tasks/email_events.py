@@ -38,11 +38,8 @@ def process_sendgrid_events(events):
             raw_id = event.get("email_task_id")
             if not raw_id:
                 continue
-            try:
-                valid_events.append((int(raw_id), event))
-            except (ValueError, TypeError):
-                # Only catch the specific errors expected from int() casting
-                continue
+            valid_events.append((int(raw_id), event))
+
 
         if not valid_events:
             return

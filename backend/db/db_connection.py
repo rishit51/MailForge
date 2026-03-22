@@ -16,8 +16,15 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))   # db/
 PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))  # backend/
 DB_PATH = os.path.join(PROJECT_ROOT, "app.db")
 
-ASYNC_DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/emailsender"
-SYNC_DATABASE_URL = "postgresql+psycopg2://postgres:postgres@localhost:5432/emailsender"
+ASYNC_DATABASE_URL = os.getenv(
+    "ASYNC_DATABASE_URL",
+    "postgresql+asyncpg://postgres:postgres@localhost:5432/emailsender"
+)
+
+SYNC_DATABASE_URL = os.getenv(
+    "SYNC_DATABASE_URL",
+    "postgresql+psycopg2://postgres:postgres@localhost:5432/emailsender"
+)
 # Async engine (FastAPI)
 async_engine = create_async_engine(
     ASYNC_DATABASE_URL,

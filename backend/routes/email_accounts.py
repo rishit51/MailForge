@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.db_connection import get_db
 from db.db_models import EmailAccount,User
 from db.models.enums import EmailProvider
-from pydantic_models.email_accounts import EmailAccountCreate, SendgridAccountCreate
+from pydantic_models.email_accounts import EmailAccountCreate, SendgridAccountCreate, SendgridAccountUpdate
 from sqlalchemy import select
 from dependency import get_current_user
 from services.third_party_login import google_oauth_client
@@ -19,46 +19,7 @@ FRONTEND_URL = 'http://localhost:5173'
 email_account_router = APIRouter(prefix="/email-accounts", tags=["Email Accounts"])
 
 
-@email_account_router.post("/")
-async def create_email_account(
-    payload: EmailAccountCreate,
-    db: AsyncSession = Depends(get_db),
-    user:User = Depends(get_current_user)
-):
-    # basic provider-specific sanity checks
-    if payload.provider == "sendgrid":
-        if "api_key" not in payload.config:
-            raise HTTPException(
-                status_code=400,
-                detail="SendGrid config must include api_key",
-            )
-
-    if payload.provider == "gmail":
-        if "access_token" not in payload.config:
-            raise HTTPException(
-                status_code=400,
-                detail="Gmail config must include access_token",
-            )
-
-    account = EmailAccount(
-        provider=payload.provider,
-        email_address=payload.email_address,
-        config=payload.config,
-        user_id=user.id
-    )
-
-    db.add(account)
-    await db.commit()
-    await db.refresh(account)
-
-    return {
-        "id": account.id,
-        "provider": account.provider,
-        "email_address": account.email_address,
-    }
-
-
-@email_account_router.get("/")
+@email_account_router.get("/", summary="List user's email accounts")
 async def list_email_accounts(
     db: AsyncSession = Depends(get_db),
     user:User = Depends(get_current_user)
@@ -78,7 +39,7 @@ async def list_email_accounts(
         for acc in accounts
     ]
     
-@email_account_router.delete("/{account_id}")
+@email_account_router.delete("/{account_id}", summary="Delete email account")
 async def delete_email_account(
     account_id: int,
     db: AsyncSession = Depends(get_db),
@@ -94,7 +55,7 @@ async def delete_email_account(
 
 
 
-@email_account_router.get("/gmail/auth-url")
+@email_account_router.get("/gmail/auth-url", summary="Get Gmail OAuth URL", description="state=user.id, scopes=gmail.send+profile.")
 async def get_gmail_auth_url(
     current_user: User = Depends(get_current_user),
 ):
@@ -115,7 +76,7 @@ async def get_gmail_auth_url(
 
 
 
-@email_account_router.get("/gmail/callback")
+@email_account_router.get("/gmail/callback", summary="Gmail OAuth callback")
 async def gmail_callback(
     code: str,
     state: str,
@@ -165,12 +126,12 @@ async def gmail_callback(
         ))
 
     await db.commit()
-    return RedirectResponse(url=f"{FRONTEND_URL}/accounts/?connected=true")
+    return RedirectResponse(url=f"{FRONTEND_URL}/integrations/?connected=true")
 
 
 
 
-@email_account_router.post("/sendgrid")
+@email_account_router.post("/sendgrid", summary="Verify and save SendGrid account", description="Tests API key via /v3/user/profile.")
 async def verify_and_save_sendgrid(
     payload: SendgridAccountCreate,
     db: AsyncSession = Depends(get_db),
@@ -216,7 +177,56 @@ async def verify_and_save_sendgrid(
         "verified": True
     }
 
-@email_account_router.post('/auth/sendgrid/{account_id}/generate')
+@email_account_router.patch("/sendgrid/{id}")
+async def update_save_sendgrid(
+    payload: SendgridAccountUpdate, 
+    id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    stmt = select(EmailAccount).where(EmailAccount.id == id)
+    result = await db.execute(stmt)
+    account = result.scalar_one_or_none()
+
+    if account is None:
+        raise HTTPException(404, detail="Account not found")
+
+    if account.user_id != user.id:
+        raise HTTPException(403, detail="Not authorized")
+
+    api_key = payload.config.get("api_key")
+
+    headers = {
+        "Authorization": f"Bearer {api_key}"
+    }
+
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.get(
+            "https://api.sendgrid.com/v3/user/profile",
+            headers=headers
+        )
+
+    if resp.status_code != 200:
+        raise HTTPException(400, detail="Invalid SendGrid API key")
+
+    profile = resp.json()
+
+    account.email_address = profile.get("email") or account.email_address
+    account.config['api_key'] = api_key
+    account.provider = EmailProvider.SENDGRID
+    account.is_active = True
+
+    await db.commit()
+    await db.refresh(account)
+
+    return {
+        "id": account.id,
+        "provider": account.provider,
+        "email_address": account.email_address,
+        "verified": True
+    }
+
+@email_account_router.post('/auth/sendgrid/{account_id}/generate', summary="Generate SendGrid webhook OAuth credentials", description="One-time view of client_id/secret.")
 async def generate_credentials_sendgrid(
     account_id: int,
     db: AsyncSession = Depends(get_db),
