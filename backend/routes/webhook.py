@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 webhook_integration_router = APIRouter(prefix="/webhook")
 
-@webhook_integration_router.post("/sendgrid")
+@webhook_integration_router.post("/sendgrid", summary="SendGrid delivery events webhook", description="Validates OAuth Bearer token (from /auth/sendgrid/.../generate), queues Celery process_sendgrid_events. Why OAuth? Links events to EmailAccount fast. Returns 202 immediately.")
 async def sendgrid_webhook(request: Request):
     # -----------------------------
     # 1️⃣ VERIFY OAUTH TOKEN FIRST

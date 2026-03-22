@@ -3,23 +3,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import csv, io, uuid, aiofiles, os
 from db.models.enums import DatasetStatus
-from pydantic_models.dataset import DatasetRepr
 from tasks.process_csv import process_csv_background
 from db.db_connection import get_db
 from db.db_models import Dataset, SourceType, DatasetRow, User
 from dependency import get_current_user
-from fastapi_pagination import Page,paginate
-dataset_router = APIRouter(prefix="/datasets")
+from pydantic_models.dataset import DatasetPreviewResponse, DatasetListResponse,DatasetPreviewResponse,DatasetListItem,DatasetRepr
 
 
-@dataset_router.post("/", response_model=dict)
-async def upload_csv(
-    file: UploadFile = File(...),
-    email_column: str = Form(...),
-    name: str = Form(...),
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
-):  
+dataset_router = APIRouter(prefix="/datasets",tags=["Datasets"])
+
+
+@dataset_router.post( path = '/',response_model=DatasetRepr,  summary="Upload CSV dataset",  description="**Max 100MB**. Validates header/email_column. Saves to `/uploads/`, creates Dataset(PROCESSING), queues Celery task. Why background? Large CSVs don't block. Returns columns immediately.")
+async def upload_csv(  file: UploadFile = File(...),   email_column: str = Form(...),    name: str = Form(...),    db: AsyncSession = Depends(get_db),  user: User = Depends(get_current_user)):  
     size = 0
     MAX_SIZE = 100_000_000
 
@@ -67,15 +62,18 @@ async def upload_csv(
     process_csv_background.delay(
         file_path,
         dataset.id)
-    return {
-        "columns": columns,
-        "name": dataset.name,
-        "email_column": dataset.email_column,
-    }
+    
+    return DatasetRepr(
+        id= dataset.id,
+        source_type= dataset.source_type,
+        json_schema=dataset.json_schema,
+        created_at=dataset.created_at,
+        name=dataset.name
+    )
     
 from fastapi import Query
 from sqlalchemy import select, func
-@dataset_router.get("/")
+@dataset_router.get("/", response_model=DatasetListResponse)
 async def list_datasets(
     session: AsyncSession = Depends(get_db),
     page: int = Query(1, ge=1),
@@ -102,14 +100,14 @@ async def list_datasets(
 
     return {
         "data": [
-            {
-                "id": d.id,
-                "name": d.name,
-                "type": d.source_type,
-                "rows": d.processed_rows,
-                "status": d.dataset_status,
-                "date": d.created_at.strftime("%d %b %Y"),
-            }
+            DatasetListItem(
+                id=d.id,
+                name=d.name,
+                type=d.source_type.value,
+                rows=getattr(d, 'processed_rows', 0),
+                status=d.dataset_status.value,
+                date=d.created_at.strftime("%d %b %Y"),
+            )
             for d in datasets
         ],
         "pagination": {
@@ -120,13 +118,8 @@ async def list_datasets(
         },
     }
     
-@dataset_router.get("/{id}")
-async def get_dataset(
-    id: int,
-    session: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user)
-)->DatasetRepr:
-
+@dataset_router.get("/{id}", summary="Get dataset details")
+async def get_dataset( id: int,   session: AsyncSession = Depends(get_db),   user: User = Depends(get_current_user))->DatasetRepr:
     result = await session.execute(
         select(Dataset).where(
             Dataset.user_id == user.id,
@@ -145,12 +138,8 @@ async def get_dataset(
     return dataset
 
 
-@dataset_router.get('/preview/{dataset_id}')
-async def get_preview(
-    dataset_id: int,
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
+@dataset_router.get('/preview/{dataset_id}', response_model=DatasetPreviewResponse)
+async def get_preview(dataset_id: int,    user: User = Depends(get_current_user),   db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(Dataset).where(
             Dataset.user_id == user.id,
@@ -171,11 +160,8 @@ async def get_preview(
         
     rows = [list(row.values()) for row in rows]
 
-
-
-    response = {
-        "json_schema": dataset.json_schema,
-        "rows": rows
-    }
-
-    return response
+    from pydantic_models.dataset import DatasetPreviewResponse
+    return DatasetPreviewResponse(
+        json_schema=dataset.json_schema,
+        rows=rows
+    )

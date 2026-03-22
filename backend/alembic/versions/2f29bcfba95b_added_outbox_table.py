@@ -30,7 +30,22 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('job_id')
     )
-    op.execute("ALTER TYPE emailjobstatus ADD VALUE 'PROCESSING'")
+    op.execute("""
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_enum
+        WHERE enumlabel = 'PROCESSING'
+        AND enumtypid = (
+            SELECT oid FROM pg_type WHERE typname = 'emailjobstatus'
+        )
+    ) THEN
+        ALTER TYPE emailjobstatus ADD VALUE 'PROCESSING';
+    END IF;
+END$$;
+""")
+
     # ### end Alembic commands ###
 
 

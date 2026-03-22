@@ -8,7 +8,13 @@ from routes.llm import llm_router
 from routes.webhook import webhook_integration_router
 from routes.users import log_router,register_router
 from routes.auth import auth_service_router
-app = FastAPI()
+app = FastAPI(
+    title="EmailSender API",
+    description="Bulk email campaign platform with CSV uploads, AI templates, Gmail/SendGrid integration, and delivery tracking.",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -33,21 +39,3 @@ app.include_router(auth_service_router)
 @app.get("/ping")
 def ping():
     return {"message": "server is alive"}
-
-# @app.middleware("http")
-# async def log_requests(request: Request, call_next):
-#     body = await request.body()
-#     print("----- INCOMING REQUEST -----")
-#     print("URL:", request.url)
-#     print("Headers:", dict(request.headers))
-#     print("Body:", body.decode("utf-8", errors="ignore"))
-#     print("----------------------------")
-
-#     # Important: reattach body so FastAPI can read it again
-#     async def receive():
-#         return {"type": "http.request", "body": body}
-
-#     request._receive = receive
-
-#     response = await call_next(request)
-#     return response

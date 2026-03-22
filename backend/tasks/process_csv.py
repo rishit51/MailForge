@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 @celery_app.task(name='tasks.process_csv')
 def process_csv_background(file_path: str, dataset_id: int):
-    batch_size = 1000
+    batch_size = 2000
     rows_buffer = []
     total_rows = 0
 

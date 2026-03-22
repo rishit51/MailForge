@@ -46,10 +46,7 @@ def validate_placeholders(text: str, allowed_columns: set[str]):
 # ======================
 # Endpoint
 # ======================
-@llm_router.post(
-    "/generate-template",
-    response_model=GenerateTemplateResponse
-)
+@llm_router.post(  "/generate-template",    response_model=GenerateTemplateResponse,   summary="AI-generate email template",    description="Cohere R+ uses CSV columns + user prompt. Validates {{column}} placeholders. Why? Enables non-coders to create personalized campaigns.")
 async def generate_email_template(payload: GenerateTemplateRequest):
     allowed_columns = set(payload.columns)
     

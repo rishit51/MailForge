@@ -4,6 +4,7 @@ from db.db_connection import SyncSessionLocal
 from db.db_models import Dataset, DatasetRow ,EmailJob,EmailTask,EmailJobStatus,EmailTaskStatus
 from sqlalchemy import select
 from celery_app import celery_app
+from sqlalchemy.dialects.postgresql import insert as pg_insert 
 
 @celery_app.task(bind=True,name="tasks.process_email_tasks")
 def process_email_campaign(self,email_job_id: int):
@@ -33,7 +34,9 @@ def process_email_campaign(self,email_job_id: int):
             db.commit()
             return
         if dataset.dataset_status != DatasetStatus.COMPLETED:
+            db.rollback()
             raise self.retry(countdown=10)
+        
         result =  db.execute(
             select(DatasetRow).where(DatasetRow.dataset_id == dataset.id).execution_options(yield_per=1000)
         )
@@ -44,25 +47,33 @@ def process_email_campaign(self,email_job_id: int):
             if not email:
                 continue
 
-            task = EmailTask(
-                job_id=email_job.id,
-                dataset_row_id=row.id,
-                recipient_email=email.strip(),
-                status=EmailTaskStatus.PENDING,
-                rendered_body=render_template(email_job.prompt_template,row.row_data),
-                rendered_subject=render_template(email_job.subject_template,row.row_data)
-            )
-
-            rows_buffer.append(task)
+            task_dict = {
+                "job_id": email_job.id,
+                "dataset_row_id": row.id,
+                "recipient_email": email.strip(),
+                "status": EmailTaskStatus.PENDING,
+                "rendered_body": render_template(email_job.prompt_template, row.row_data),
+                "rendered_subject": render_template(email_job.subject_template, row.row_data)
+            }
+            rows_buffer.append(task_dict)
 
             if len(rows_buffer) >= batch_size:
-                db.add_all(rows_buffer)
-                db.flush()
+                stmt = pg_insert(EmailTask).values(rows_buffer)
+                stmt = stmt.on_conflict_do_nothing(
+                    index_elements=['job_id', 'dataset_row_id'] 
+                )
+                db.execute(stmt)
+                db.commit()
                 rows_buffer.clear()
 
         if rows_buffer:
-            db.add_all(rows_buffer)
-            db.flush()
+                stmt = pg_insert(EmailTask).values(rows_buffer)
+                stmt = stmt.on_conflict_do_nothing(
+                    index_elements=['job_id', 'dataset_row_id'] 
+                )
+                db.execute(stmt)
+                db.commit()
+                rows_buffer.clear()
 
         email_job.status = EmailJobStatus.SCHEDULED
         db.commit()

@@ -1,9 +1,0 @@
-# Test requirements for CSV stress testing
-pytest
-pytest-asyncio
-httpx
-pytest-celery
-celery[redis]
-locust
-
-# Install: pip install -r requirements-test.txt
