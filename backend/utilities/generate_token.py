@@ -4,8 +4,8 @@ from datetime import datetime, timedelta
 from fastapi import Request
 from fastapi.responses import PlainTextResponse
 from jose import JWTError, jwt
-import os 
-SECRET = os.getenv("OAUTH_SECRET", "change-me")
+from config import settings
+SECRET = settings.OAUTH_SECRET
 ALGO = "HS256"
 EXPIRE_MINUTES = 60
 

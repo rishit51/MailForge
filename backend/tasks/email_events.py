@@ -6,6 +6,13 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from db.db_connection import get_sync_db
 from db.db_models import EmailTask, EmailEvent
 from db.models.enums import EmailTaskStatus
+import json
+import redis
+from config import settings
+import logging
+logger = logging.getLogger(__name__)
+
+redis_client = redis.from_url(settings.CELERY_RESULT_BACKEND)
 
 STATUS_PRIORITY = {
     EmailTaskStatus.PENDING: 1,
@@ -77,6 +84,21 @@ def process_sendgrid_events(events):
                 "provider_event_id": provider_event_id,
                 "created_at": created_at_dt,
             })
+
+            try:
+                pub_data = {
+                    "email_task_id": email_task.id,
+                    "email_job_id": email_task.job_id,
+                    "event_type": event_type,
+                    "timestamp": created_at_dt.isoformat(),
+                    "provider_event_id": provider_event_id
+                }
+                
+                logger.info(json.dumps(pub_data, indent=2))
+                
+                redis_client.publish(f"job-{email_task.job_id}-analytics", json.dumps(pub_data))
+            except Exception:
+                pass
 
             # Handle Status Update
             new_status = SENDGRID_TO_STATUS.get(event_type)

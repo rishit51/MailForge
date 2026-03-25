@@ -18,6 +18,7 @@ from .email_task import EmailTask
 from .email_event import EmailEvent
 from .email_job_analytics import EmailJobAnalytics
 from .outbox_event import OutboxEvent
+from .email_task_outbox import EmailTaskOutbox
 __all__ = [
     # Enums
     "SourceType",

@@ -18,7 +18,7 @@ async def sendgrid_webhook(request: Request):
     # 1️⃣ VERIFY OAUTH TOKEN FIRST
     # -----------------------------
     auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("bearer "):
+    if not auth_header or not auth_header.lower().startswith("bearer "):
         # Log this as a critical warning so you don't fail silently!
         logger.warning("SendGrid Webhook received without valid Bearer token. Dropping request.")
         return PlainTextResponse("Processed", status_code=202)
@@ -50,6 +50,7 @@ async def sendgrid_webhook(request: Request):
     # -----------------------------
     # 3️⃣ DELEGATE TO CELERY & RESPOND
     # -----------------------------
+
     process_sendgrid_events.delay(events)
 
     return JSONResponse(content={"status": "accepted"}, status_code=202)

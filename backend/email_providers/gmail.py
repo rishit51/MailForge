@@ -8,16 +8,14 @@ from googleapiclient.discovery import build
 from email.mime.text import MIMEText
 
 from db.models.email_task import EmailTask
+from db.models import EmailEvent
 from email_providers.base import BaseEmailProviderAdapter
 from sqlalchemy.orm import Session
 from db.db_connection import get_sync_db
-import os
-from dotenv import load_dotenv
+from config import settings
 
-load_dotenv()
-
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
+GOOGLE_CLIENT_ID = settings.GOOGLE_CLIENT_ID
+GOOGLE_CLIENT_SECRET = settings.GOOGLE_CLIENT_SECRET
 
 class GmailAdapter(BaseEmailProviderAdapter):
 

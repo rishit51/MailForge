@@ -1,6 +1,5 @@
 from sqlalchemy.orm import Mapped,mapped_column
-from sqlalchemy import ForeignKey
-
+from sqlalchemy import ForeignKey, UniqueConstraint
 from .base import Base 
 
 class EmailJobAnalytics(Base):
@@ -13,3 +12,7 @@ class EmailJobAnalytics(Base):
     clicked_count: Mapped[int] = mapped_column(default=0)
     bounced_count: Mapped[int] = mapped_column(default=0)
     failed_count: Mapped[int] = mapped_column(default=0)
+    
+    __table_args__ =(
+        UniqueConstraint("job_id", name="uq_job_analytics_row"),
+    )

@@ -5,10 +5,7 @@ from operations import get_user_by_email, pwd_context
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
 from typing import Optional
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
+from config import settings
 
 
 async def authenticate_user(
@@ -24,9 +21,9 @@ async def authenticate_user(
     return user
 
 
-SECRET_KEY = os.getenv("SECRET_KEY", "dev-only-fallback-change-me")
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+SECRET_KEY = settings.SECRET_KEY
+ALGORITHM = settings.ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
 
 def create_access_token(data: dict) -> str:

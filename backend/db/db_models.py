@@ -14,6 +14,7 @@ from .models.email_account import EmailAccount
 from .models.email_job import EmailJob
 from .models.email_task import EmailTask
 from .models.email_event import EmailEvent
+from .models.email_task_outbox import EmailTaskOutbox
 
 
 __all__ = [
@@ -29,6 +30,7 @@ __all__ = [
     "EmailJob",
     "EmailTask",
     "EmailEvent",
+    "EmailTaskOutbox",
     "DatasetStatus"
 ]
 

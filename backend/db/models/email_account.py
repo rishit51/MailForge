@@ -4,15 +4,13 @@ from sqlalchemy import Enum, LargeBinary, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 from .base import Base
 from .enums import EmailProvider
-import os
 from cryptography.fernet import Fernet
 import pickle
-from dotenv import load_dotenv
 import json
-load_dotenv()
+from config import settings
 
-key = os.getenv('ENCRYPTION_KEY')
-if key is None:
+key = settings.ENCRYPTION_KEY
+if not key:
     raise EnvironmentError('ENCRYPTION_KEY missing from .env')
 fernet = Fernet(key.encode())
 

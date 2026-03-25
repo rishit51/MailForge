@@ -1,16 +1,15 @@
-import os
 import json
 import re
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from cohere import AsyncClient
-from dotenv import load_dotenv
+from config import settings
+
 # ======================
 # Cohere Client
 # ======================
-load_dotenv()
 client = AsyncClient(
-    api_key=os.getenv("COHERE_API_KEY")
+    api_key=settings.COHERE_API_KEY
 )
 
 llm_router = APIRouter(prefix="/llm", tags=["LLM"])

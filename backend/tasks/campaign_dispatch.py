@@ -2,7 +2,7 @@ from datetime import datetime
 from db.db_connection import get_sync_db
 from celery_app import celery_app
 from sqlalchemy import or_, select
-from db.models import EmailJob,EmailJobStatus,Dataset
+from db.models import EmailJob,EmailJobStatus,Dataset,EmailJobAnalytics
 from db.models.enums import DatasetStatus
 from db.models import OutboxEvent
 
@@ -28,6 +28,7 @@ def schedule_campaigns():
 
         for job in jobs:
             job.status = EmailJobStatus.RUNNING
+            db.add(EmailJobAnalytics(job_id = job.id))
             db.add(OutboxEvent(job_id=job.id))
         
         db.commit()

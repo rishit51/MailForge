@@ -3,7 +3,7 @@ from typing import Optional
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select,and_
+from sqlalchemy import select,and_,desc
 
 from db.db_connection import get_db
 from db.db_models import EmailJob, EmailJobStatus, Dataset, EmailAccount, User
@@ -156,7 +156,7 @@ async def schedule_email_job(
 @jobs_router.get('/',summary='Get all jobs for the user')
 async def get_all_jobs(session: AsyncSession = Depends(get_db),user: User = Depends(get_current_user)):
     
-    stmt = select(EmailJob).where(EmailJob.user_id == user.id)
+    stmt = select(EmailJob).where(EmailJob.user_id == user.id).order_by(EmailJob.created_at.desc())
     results = await session.execute(stmt)
     results = results.scalars().all()
     
@@ -177,6 +177,5 @@ async def get_job(id:int,session: AsyncSession = Depends(get_db),user: User = De
     return {
         'data':results
     }
-    
     
     
