@@ -43,8 +43,11 @@ async def list_email_accounts(
 async def delete_email_account(
     account_id: int,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
 ):
-    account = await db.get(EmailAccount, account_id)
+    stmt = select(EmailAccount).where(EmailAccount.id == account_id, EmailAccount.user_id == user.id)
+    result = await db.execute(stmt)
+    account = result.scalar_one_or_none()
     if not account:
         raise HTTPException(status_code=404, detail="Email account not found")
 

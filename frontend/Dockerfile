@@ -3,6 +3,8 @@
 FROM node:20-alpine AS builder
 
 WORKDIR /app
+ARG VITE_API_URL=/api
+ENV VITE_API_URL=$VITE_API_URL
 
 # Copy package files
 COPY package*.json ./
@@ -30,12 +32,12 @@ server {
         try_files \$uri \$uri/ /index.html;
     }
 
-    # API proxy for dev convenience (points to backend)
     location /api/ {
-        proxy_pass http://backend:8000/;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-    }
+    proxy_pass http://backend:8000/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+}
+
 }
 EOF
 

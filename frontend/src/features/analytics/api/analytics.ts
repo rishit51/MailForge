@@ -30,7 +30,7 @@ export const useJobEvents = (jobId: number | undefined | null) => {
       return;
     }
 
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const baseUrl = import.meta.env.VITE_API_URL || '/api/';
     // Passing token via query param as EventSource doesn't support custom headers
     const url = `${baseUrl}/analytics/${jobId}/events/stream?token=${token}`;
 
