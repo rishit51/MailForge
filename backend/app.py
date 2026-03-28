@@ -8,6 +8,8 @@ from routes.llm import llm_router
 from routes.webhook import webhook_integration_router
 from routes.users import log_router,register_router
 from routes.auth import auth_service_router
+from routes.analytics import analytics_router
+
 app = FastAPI(
     title="EmailSender API",
     description="Bulk email campaign platform with CSV uploads, AI templates, Gmail/SendGrid integration, and delivery tracking.",
@@ -34,6 +36,7 @@ app.include_router(jobs_router)
 app.include_router(llm_router)
 app.include_router(webhook_integration_router)
 app.include_router(auth_service_router)
+app.include_router(analytics_router)
 
 
 @app.get("/ping")

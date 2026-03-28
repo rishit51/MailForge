@@ -1,7 +1,8 @@
 import os
 
 from fastapi.responses import JSONResponse
-from db.db_models import User,EmailAccount
+from db.models import User, EmailAccount
+from db.models.enums import EmailProvider
 from dependency import get_current_user
 from services.third_party_login import *
 from fastapi import APIRouter, Depends

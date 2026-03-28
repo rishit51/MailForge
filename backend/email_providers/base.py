@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from db.db_models import EmailAccount,EmailTask
+from db.models import EmailAccount, EmailTask
 
 
 class BaseEmailProviderAdapter(ABC):

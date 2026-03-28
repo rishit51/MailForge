@@ -85,3 +85,16 @@ class UserProfileResponse(BaseModel):
     email: str
     name: Optional[str] = None
 
+
+class EmailJobAnalyticsResponse(BaseModel):
+
+    id: int
+    job_id: int
+    sent_count: int
+    delivered_count: int
+    opened_count: int
+    clicked_count: int
+    bounced_count: int
+    failed_count: int
+    
+    model_config = {"from_attributes": True}

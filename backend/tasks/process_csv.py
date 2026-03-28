@@ -1,6 +1,6 @@
 from db.db_connection import AsyncSessionLocal,SyncSessionLocal
 import aiofiles, csv, io, os
-from db.db_models import Dataset, DatasetRow, DatasetStatus
+from db.models import Dataset, DatasetRow, DatasetStatus
 from sqlalchemy import select
 from typing import Optional
 from celery_app import celery_app
@@ -10,6 +10,17 @@ logger = logging.getLogger(__name__)
 
 @celery_app.task(name='tasks.process_csv')
 def process_csv_background(file_path: str, dataset_id: int):
+    """
+    Processes an uploaded CSV file and populates the `DatasetRow` table.
+    
+    This task reads the CSV file in batches, cleans the headers and values, 
+    and inserts them into the database. Upon successful completion (or failure), 
+    the temporary uploaded file is deleted.
+    
+    Args:
+        file_path (str): The local path to the CSV file.
+        dataset_id (int): The ID of the Dataset being populated.
+    """
     batch_size = 2000
     rows_buffer = []
     total_rows = 0

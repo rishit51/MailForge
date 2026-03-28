@@ -1,9 +1,9 @@
-import os
 from celery import Celery
+from config import settings
 
 # Load from environment variables, fallback to local dev defaults
-BROKER_URL = os.getenv("CELERY_BROKER_URL", "pyamqp://guest:guest@localhost:5672//")
-BACKEND_URL = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
+BROKER_URL = settings.CELERY_BROKER_URL
+BACKEND_URL = settings.CELERY_RESULT_BACKEND
 
 celery_app = Celery(
     "email_sender",

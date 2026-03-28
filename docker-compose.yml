@@ -1,0 +1,146 @@
+name: emailsender-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: emailsender
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - emailsender-net
+
+  redis:
+    image: redis:alpine
+
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - emailsender-net
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "15673:15672"  # Management UI
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    networks:
+      - emailsender-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile  # Will create below if missing
+    command: >
+      sh -c "
+      alembic upgrade head &&
+      uvicorn app:app --host 0.0.0.0 --port 8000 --reload
+      "
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      ASYNC_DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/emailsender
+      SYNC_DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/emailsender
+      CELERY_BROKER_URL: pyamqp://guest:guest@rabbitmq:5672//
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      FRONTEND_URL: http://localhost:3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - emailsender-net
+    restart: unless-stopped
+
+
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A celery_app worker --loglevel=info --concurrency=4
+    volumes:
+      - ./backend:/app
+    environment:
+      ASYNC_DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/emailsender
+      SYNC_DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/emailsender
+      CELERY_BROKER_URL: pyamqp://guest:guest@rabbitmq:5672//
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+    depends_on:
+      - backend
+      - postgres
+      - redis
+      - rabbitmq
+    networks:
+      - emailsender-net
+    restart: unless-stopped
+
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A celery_app beat --loglevel=info
+    volumes:
+      - ./backend:/app
+    environment:
+      ASYNC_DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/emailsender
+      SYNC_DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/emailsender
+      CELERY_BROKER_URL: pyamqp://guest:guest@rabbitmq:5672//
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+    depends_on:
+      - backend
+      - postgres
+      - redis
+      - rabbitmq
+    networks:
+      - emailsender-net
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    depends_on:
+      - backend
+    networks:
+      - emailsender-net
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  emailsender-net:
+    driver: bridge
+

@@ -2,9 +2,9 @@ from datetime import datetime
 from typing import Optional
 from sqlalchemy import Enum, DateTime, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
-
 from .base import Base
 from .enums import EmailJobStatus
+from sqlalchemy import Enum, DateTime, ForeignKey, Index, String, UniqueConstraint
 
 
 class EmailJob(Base):
@@ -37,12 +37,16 @@ class EmailJob(Base):
         nullable=False,
     )
 
-    scheduled_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    scheduled_at: Mapped[Optional[datetime]] = mapped_column(DateTime, index=True)
     throttle_per_minute: Mapped[int] = mapped_column(default=60, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=datetime.utcnow,
         nullable=False,
+        index=True
     )
+
+
+
 

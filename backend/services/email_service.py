@@ -1,4 +1,4 @@
-from db.db_models import EmailAccount,EmailTask
+from db.models import EmailAccount, EmailTask
 from email_providers.factory import provider_factory
 import os
 from dotenv import load_dotenv
