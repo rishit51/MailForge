@@ -6,6 +6,13 @@ from db.models import OutboxEvent, EmailTaskOutbox
 
 @celery_app.task(name="tasks.process_outbox")
 def process_outbox():
+    """
+    Periodic task that polls the `OutboxEvent` table for new job invocations.
+    
+    This is the first stage of the outbox pattern. It finds un-published job events, 
+    dispatches them to the `run_campaign` task, and marks them as published.
+    Uses `FOR UPDATE SKIP LOCKED` for safe parallel processing.
+    """
     with get_sync_db() as db:
         events = db.execute(
             select(OutboxEvent)
@@ -14,7 +21,7 @@ def process_outbox():
         ).scalars().all()
 
         for event in events:
-            celery_app.send_task("tasks.run_campaign", args=[event.job_id])
+            celery_app.send_task("tasks.dispatch_campaign", args=[event.job_id])
             event.published = True
 
         db.commit()
@@ -22,8 +29,14 @@ def process_outbox():
 @celery_app.task(name="tasks.process_task_outbox")
 def process_task_outbox():
     """
-    Processes the individual email task outbox. 
-    Can be scaled by running multiple instances of this task.
+    Processes the `EmailTaskOutbox` to dispatch individual email sends.
+    
+    This task is responsible for the high-volume throughput needed to send individual
+    emails for a campaign. It retrieves a batch of pending tasks using a locking mechanism 
+    to ensure idempotency across multiple worker scales.
+    
+    Args:
+        None (Operates on the EmailTaskOutbox database table)
     """
     with get_sync_db() as db:
         # Fetch a batch of unprocessed outbox events

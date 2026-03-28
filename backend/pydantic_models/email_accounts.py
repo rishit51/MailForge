@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from typing import Dict, Optional
 from datetime import datetime
-from db.db_models import EmailProvider
+from db.models.enums import EmailProvider
 from .responses import EmailAccountResponse, EmailAccountListItem
 
 class EmailAccountCreate(BaseModel):

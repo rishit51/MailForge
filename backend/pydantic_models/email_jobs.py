@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from db.db_models import EmailJobStatus
+from db.models import EmailJobStatus
 from datetime import datetime
 from typing import Optional
 from .responses import EmailJobResponse, EmailJobListItem, EmailJobCreateResponse

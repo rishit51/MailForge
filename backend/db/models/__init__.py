@@ -4,6 +4,7 @@ from .enums import (
     EmailProvider,
     EmailJobStatus,
     EmailTaskStatus,
+    DatasetStatus,
 )
 
 # Base
@@ -25,6 +26,7 @@ __all__ = [
     "EmailProvider",
     "EmailJobStatus",
     "EmailTaskStatus",
+    "DatasetStatus",
     # Base
     "Base",
     # Models

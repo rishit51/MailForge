@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import List, Any
-from db.db_models import SourceType
+from db.models import DatasetStatus, SourceType
 from .responses import DatasetListItem, DatasetPreviewResponse, DatasetListResponse
 
 class DatasetRepr(BaseModel):

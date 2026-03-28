@@ -6,7 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select,and_,desc
 
 from db.db_connection import get_db
-from db.db_models import EmailJob, EmailJobStatus, Dataset, EmailAccount, User
+from db.models import EmailJob, Dataset, EmailAccount, User
+from db.models.enums import EmailJobStatus
 from dependency import get_current_user
 from pydantic_models.responses import EmailJobCreateResponse
 from tasks.create_email_tasks import process_email_campaign

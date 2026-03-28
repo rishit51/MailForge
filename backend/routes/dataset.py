@@ -5,7 +5,7 @@ import csv, io, uuid, aiofiles, os
 from db.models.enums import DatasetStatus
 from tasks.process_csv import process_csv_background
 from db.db_connection import get_db
-from db.db_models import Dataset, SourceType, DatasetRow, User
+from db.models import Dataset, SourceType, DatasetRow, User
 from dependency import get_current_user
 from pydantic_models.dataset import DatasetPreviewResponse, DatasetListResponse,DatasetPreviewResponse,DatasetListItem,DatasetRepr
 

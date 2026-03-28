@@ -1,5 +1,5 @@
 from email_providers.base import BaseEmailProviderAdapter
-from db.db_models import EmailTask
+from db.models import EmailAccount, EmailTask, EmailEvent
 from db.db_models import *
 from sendgrid import Mail,SendGridAPIClient,CustomArg
 

@@ -5,7 +5,7 @@ import secrets
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from db.db_connection import get_db
-from db.db_models import EmailAccount,User
+from db.models import User, EmailAccount
 from db.models.enums import EmailProvider
 from pydantic_models.email_accounts import EmailAccountCreate, SendgridAccountCreate, SendgridAccountUpdate
 from sqlalchemy import select

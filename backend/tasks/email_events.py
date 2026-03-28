@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from db.db_connection import get_sync_db
-from db.db_models import EmailTask, EmailEvent
+from db.models import EmailTask, EmailEvent
 from db.models.enums import EmailTaskStatus
 import json
 import redis

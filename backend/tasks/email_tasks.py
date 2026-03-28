@@ -36,6 +36,12 @@ def get_rate_config(provider, throttle_per_minute):
 
 @celery_app.task(bind=True, max_retries=3, name="tasks.send_single_email")
 def send_single_email(self, email_task_id: int):
+    """
+    Task to send a single email. 
+    1: Checks for idempotency and returns if email was already SENT or locked by another worker
+    2: Tries to consume a token and if not available then returns
+    3: If succesful in consuming tokens then immediately locks the task and then starts the process to send it
+    """
     logger.info("[SENDER] Start task_id=%s", email_task_id)
 
     try:
@@ -71,7 +77,7 @@ def send_single_email(self, email_task_id: int):
         # -------------------------------
         refill_rate, max_tokens = get_rate_config(provider, throttle)
         
-        if not consume_token(...):
+        if not consume_token(f'Job_throttle-{job_id}',refill_rate,max_tokens):
             celery_app.send_task(
                 "tasks.send_single_email",
                 args=[email_task_id],

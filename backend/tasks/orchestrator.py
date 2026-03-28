@@ -9,6 +9,16 @@ logger = logging.getLogger(__name__)
 
 @celery_app.task(name="tasks.dispatch_campaign")
 def dispatch_campaign(job_id: int):
+    """
+    Dispatches a list of email tasks for a given job into the outbox.
+    
+    This task transitions a job to the `RUNNING` state and fetches `PENDING` email 
+    tasks in batches. For each task, it creates an entry in the `EmailTaskOutbox` 
+    to be picked up by the outbox processor.
+    
+    Args:
+        job_id (int): The ID of the EmailJob to dispatch.
+    """
     with get_sync_db() as db:
         job = db.execute(
             select(EmailJob)
